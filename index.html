@@ -1,0 +1,264 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Academic Scheduler</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f2f5fc;
+  color: #202b45;
+}
+header {
+  background: linear-gradient(120deg, #182848, #4b6cb7);
+  color: white;
+  text-align: center;
+  padding: 35px 15px;
+}
+header h1 { margin: 0 0 12px; }
+header p { margin: 0; }
+.container {
+  max-width: 1200px;
+  margin: 25px auto;
+  padding: 0 16px;
+}
+.card {
+  background: white;
+  padding: 22px;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px #17264b12;
+  margin-bottom: 22px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+}
+.stat {
+  background: #eef2ff;
+  padding: 18px;
+  border-radius: 10px;
+}
+.stat h2 { color: #405fbd; margin: 8px 0; }
+button {
+  background: #405fbd;
+  color: white;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  margin: 5px 5px 5px 0;
+}
+button:hover { background: #283f8e; }
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+}
+th {
+  background: #293e80;
+  color: white;
+}
+th, td {
+  border: 1px solid #dce2ef;
+  padding: 13px 9px;
+  text-align: center;
+  font-size: 13px;
+}
+td:first-child { font-weight: bold; background: #eef2ff; }
+td:not(:first-child) { background: #f8faff; }
+.free { color: #929bb0; }
+.note { color: #5d6880; line-height: 1.6; }
+footer { text-align: center; padding: 20px; color: #68738a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI-Based Academic Scheduler</h1>
+  <p>Smart Timetable Generation Using Constraint Satisfaction Problems</p>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>Dashboard</h2>
+    <div class="stats">
+      <div class="stat"><div>Subjects</div><h2>6</h2></div>
+      <div class="stat"><div>Teachers</div><h2>5</h2></div>
+      <div class="stat"><div>Working Days</div><h2>5</h2></div>
+      <div class="stat"><div>Daily Slots</div><h2>6</h2></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Weekly Timetable</h2>
+    <p class="note">
+      Generate a timetable using backtracking. Each subject is scheduled
+      at most once per day, and a teacher cannot teach two classes at once.
+    </p>
+    <button onclick="generateTimetable()">Generate Timetable</button>
+    <button onclick="window.print()">Print Timetable</button>
+    <p id="status" class="note">Click Generate Timetable to begin.</p>
+    <div class="table-wrap">
+      <table id="timetable"></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>How It Works</h2>
+    <p class="note">
+      <b>Constraint Satisfaction Problem (CSP):</b>
+      subjects are variables, available time slots are possible values,
+      and teacher and timetable rules are constraints.
+    </p>
+    <p class="note">
+      <b>Backtracking:</b> the algorithm assigns a subject to an available
+      slot and tries another slot if a constraint is violated.
+    </p>
+  </div>
+</div>
+
+<footer>AI Academic Scheduler | Student Project</footer>
+
+<script>
+const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+const slots = [
+  "09:00-10:00", "10:00-11:00",
+  "11:15-12:15", "12:15-01:15",
+  "02:00-03:00", "03:00-04:00"
+];
+
+const subjects = [
+  ["Python", "Teacher A"],
+  ["Mathematics", "Teacher B"],
+  ["Database", "Teacher C"],
+  ["Statistics", "Teacher D"],
+  ["Artificial Intelligence", "Teacher A"],
+  ["Computer Networks", "Teacher E"]
+];
+
+const lectures = [];
+subjects.forEach(([subject, teacher]) => {
+  for (let n = 1; n <= 5; n++) {
+    lectures.push({ subject, teacher, lecture: n });
+  }
+});
+
+function generateTimetable() {
+  const assignment = Array(lectures.length).fill(null);
+  const totalSlots = days.length * slots.length;
+  const used = Array.from({length: totalSlots}, () => false);
+
+  // Each slot has a unique number.
+  function consistent(i, t) {
+    const day = Math.floor(t / slots.length);
+    const teacher = lectures[i].teacher;
+    const subject = lectures[i].subject;
+
+    for (let j = 0; j < assignment.length; j++) {
+      if (assignment[j] === null) continue;
+
+      if (assignment[j] === t) return false;
+
+      if (Math.floor(assignment[j] / slots.length) === day &&
+          lectures[j].subject === subject) return false;
+
+      if (assignment[j] === t &&
+          lectures[j].teacher === teacher) return false;
+    }
+    return true;
+  }
+
+  // Backtracking with Minimum Remaining Values (MRV).
+  function backtrack(count) {
+    if (count === lectures.length) return true;
+
+    let best = -1;
+    let bestValues = null;
+
+    for (let i = 0; i < lectures.length; i++) {
+      if (assignment[i] !== null) continue;
+
+      const values = [];
+      for (let t = 0; t < totalSlots; t++) {
+        if (!used[t] && consistent(i, t)) values.push(t);
+      }
+
+      if (values.length === 0) return false;
+
+      if (bestValues === null || values.length < bestValues.length) {
+        best = i;
+        bestValues = values;
+      }
+    }
+
+    for (const t of bestValues) {
+      assignment[best] = t;
+      used[t] = true;
+
+      if (backtrack(count + 1)) return true;
+
+      assignment[best] = null;
+      used[t] = false;
+    }
+
+    return false;
+  }
+
+  const status = document.getElementById("status");
+
+  if (!backtrack(0)) {
+    status.textContent = "No valid timetable found.";
+    return;
+  }
+
+  const table = document.getElementById("timetable");
+  table.innerHTML = "";
+
+  const head = document.createElement("tr");
+  ["Day", ...slots].forEach(text => {
+    const th = document.createElement("th");
+    th.textContent = text;
+    head.appendChild(th);
+  });
+  table.appendChild(head);
+
+  days.forEach((day, d) => {
+    const row = document.createElement("tr");
+    const dayCell = document.createElement("td");
+    dayCell.textContent = day;
+    row.appendChild(dayCell);
+
+    slots.forEach((slot, s) => {
+      const cell = document.createElement("td");
+      const t = d * slots.length + s;
+      const i = assignment.findIndex(value => value === t);
+
+      if (i === -1) {
+        cell.textContent = "FREE";
+        cell.className = "free";
+      } else {
+        cell.textContent =
+          lectures[i].subject + "\n" + lectures[i].teacher;
+        cell.style.whiteSpace = "pre-line";
+      }
+
+      row.appendChild(cell);
+    });
+
+    table.appendChild(row);
+  });
+
+  status.textContent =
+    "Timetable generated successfully using CSP and backtracking!";
+}
+
+generateTimetable();
+</script>
+</body>
+</html>
